@@ -60,6 +60,16 @@ void setLED(Led_TypeDef led, GPIO_PinState estado)
 
 
 /**
+  * @brief Altera o estado de um LED para o estado complementar
+  * @param led Número do LED
+  * @return Nenhum
+  */
+void toggleLED(Led_TypeDef led)
+{
+	HAL_GPIO_TogglePin(LEDS_PORT[led], LEDS_PIN[led]);
+}
+
+/**
   * @brief Altera o estado de todos os LEDs
   * @param estado LOW - apaga todos os LEDs ou HIGH - liga todos os LEDs
   * @return Nenhum

@@ -49,6 +49,7 @@ typedef enum
 /* Protótipos das Funções --------------------------------------------------- */
 void ledsConfig(void);
 void setLED(Led_TypeDef led, GPIO_PinState estado);
+void toggleLED(Led_TypeDef led);
 void allLEDs(GPIO_PinState estado);
 
 

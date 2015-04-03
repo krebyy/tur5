@@ -25,6 +25,7 @@
 #include "usart1.h"
 #include "sensores.h"
 #include "encoders.h"
+#include "speedProfile.h"
 
 
 /* Constantes ----------------------------------------------------------------*/

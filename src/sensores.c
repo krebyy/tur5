@@ -52,6 +52,7 @@ void sensoresConfig(void)
 {
 	SENSORES_CLK;	// Habilita o barramento de clock do GPIO dos Sensores
 	GPIO_InitTypeDef GPIO_InitStructure;
+	ADC_ChannelConfTypeDef sConfig;
 
 	// Configura os GPIOs dos emissores como saída push/pull
 	for(int i = 0; i < N_EMISSORES; i++)
@@ -171,17 +172,17 @@ int32_t getSensoresLinha()
 	// extremidades pussuem peso maior, no final é realizada a média ponderada
 	if(HAL_GPIO_ReadPin(LINE1_PORT, LINE1_PIN) == LINHA)
 	{
-		soma += -30;
+		soma += -16;
 		n++;
 	}
 	if(HAL_GPIO_ReadPin(LINE2_PORT, LINE2_PIN) == LINHA)
 	{
-		soma += -20;
+		soma += -8;
 		n++;
 	}
 	if(HAL_GPIO_ReadPin(LINE3_PORT, LINE3_PIN) == LINHA)
 	{
-		soma += -10;
+		soma += -4;
 		n++;
 	}
 	if(HAL_GPIO_ReadPin(LINE4_PORT, LINE4_PIN) == LINHA)
@@ -194,23 +195,105 @@ int32_t getSensoresLinha()
 	}
 	if(HAL_GPIO_ReadPin(LINE6_PORT, LINE6_PIN) == LINHA)
 	{
-		soma += 10;
+		soma += 4;
 		n++;
 	}
 	if(HAL_GPIO_ReadPin(LINE7_PORT, LINE7_PIN) == LINHA)
 	{
-		soma += 20;
+		soma += 8;
 		n++;
 	}
 	if(HAL_GPIO_ReadPin(LINE8_PORT, LINE8_PIN) == LINHA)
 	{
-		soma += 30;
+		soma += 16;
 		n++;
 	}
 
 	// Desabilita os emissores
 	HAL_GPIO_WritePin(L_LINE_PORT, L_LINE_PIN, LOW);
 	HAL_GPIO_WritePin(R_LINE_PORT, R_LINE_PIN, LOW);
+
+
+	if(n != 0)
+	{
+		erro = soma / n;
+	}
+	else
+	{
+		erro = INFINITO;
+	}
+
+	return erro;
+}
+
+
+/**
+  * @brief Realiza várias leituras dos sensores de linha e retorna a média
+  * @param Nenhum
+  * @return erro Valores negativos (delocado para direita), valores positivos
+  * (deslocado para esquerda), INFINITO caso não tenha detectado linha
+  */
+int32_t readLine()
+{
+	int32_t erro = 0, soma = 0, n = 0;
+
+	for(int i = 25; i <= 100; i += 5)
+	{
+		uint32_t t0 = micros();
+
+		// Habilita os emissores
+		HAL_GPIO_WritePin(L_LINE_PORT, L_LINE_PIN, HIGH);
+		HAL_GPIO_WritePin(R_LINE_PORT, R_LINE_PIN, HIGH);
+		elapse_us(i, t0);
+
+		// Realiza a leitura de todos os sensores de linha, os sensores das
+		// extremidades pussuem peso maior, no final é realizada a média ponderada
+		if(HAL_GPIO_ReadPin(LINE1_PORT, LINE1_PIN) == LINHA)
+		{
+			soma += -2000;
+			n++;
+		}
+		if(HAL_GPIO_ReadPin(LINE2_PORT, LINE2_PIN) == LINHA)
+		{
+			soma += -1333;
+			n++;
+		}
+		if(HAL_GPIO_ReadPin(LINE3_PORT, LINE3_PIN) == LINHA)
+		{
+			soma += -667;
+			n++;
+		}
+		if(HAL_GPIO_ReadPin(LINE4_PORT, LINE4_PIN) == LINHA)
+		{
+			soma += -167;
+			n++;
+		}
+		if(HAL_GPIO_ReadPin(LINE5_PORT, LINE5_PIN) == LINHA)
+		{
+			soma += 167;
+			n++;
+		}
+		if(HAL_GPIO_ReadPin(LINE6_PORT, LINE6_PIN) == LINHA)
+		{
+			soma += 667;
+			n++;
+		}
+		if(HAL_GPIO_ReadPin(LINE7_PORT, LINE7_PIN) == LINHA)
+		{
+			soma += 1333;
+			n++;
+		}
+		if(HAL_GPIO_ReadPin(LINE8_PORT, LINE8_PIN) == LINHA)
+		{
+			soma += 2000;
+			n++;
+		}
+
+		// Desabilita os emissores
+		HAL_GPIO_WritePin(L_LINE_PORT, L_LINE_PIN, LOW);
+		HAL_GPIO_WritePin(R_LINE_PORT, R_LINE_PIN, LOW);
+		elapse_us(i * 2, t0);
+	}
 
 
 	if(n != 0)
@@ -235,8 +318,18 @@ int32_t getGyro()
 {
 	int32_t w = 0;
 
-	// ARRUMAR OLHANDO O FORUM STM (colocar os ranks dos canais e alterar a getRawADC)
-	w = getRawADC(G_OUTZ_CH);
+	w = getRawADC(G_OUTZ_CH) - getRawADC(G_VREF_CH);
+
+	/*int i;
+	int sampleNum = 20;
+	aSpeed = 0;
+	for(i=0;i<sampleNum;i++)
+		aSpeed += read_Outz;
+    aSpeed *= 50000/sampleNum;
+	aSpeed -= 92980000;
+	aSpeed /= 50000;
+	aSpeed /= 4;
+	angle += aSpeed;*/
 
 	return w;
 }
