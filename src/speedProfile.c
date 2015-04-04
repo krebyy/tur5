@@ -179,3 +179,22 @@ void calculateMotorPwm(void) // encoder PD controller
 
 	setMotores(posPwmX + posPwmW, posPwmX - posPwmW);
 }
+
+void controlMotorPwm(void)
+{
+	int32_t leftSpeedErrorX = 0, rightSpeedErrorX = 0;
+	int32_t leftSpeedPwmX, rightSpeedPwmX;
+	static int32_t leftOldSpeedErrorX = 0, rightOldSpeedErrorX = 0;
+
+	getEncoderStatus();
+
+	leftOldSpeedErrorX = leftSpeedErrorX;
+	leftSpeedErrorX = targetSpeedX - leftEncoderChange;
+	leftSpeedPwmX = 50 * leftSpeedErrorX + 1 * (leftSpeedErrorX - leftOldSpeedErrorX);
+
+	rightOldSpeedErrorX = rightSpeedErrorX;
+	rightSpeedErrorX = targetSpeedX - rightEncoderChange;
+	rightSpeedPwmX = 50 * rightSpeedErrorX + 1 * (rightSpeedErrorX - rightOldSpeedErrorX);
+
+	setMotores(leftSpeedPwmX + targetSpeedW, rightSpeedPwmX - targetSpeedW);
+}
