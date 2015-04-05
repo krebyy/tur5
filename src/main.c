@@ -11,25 +11,28 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-#define KP 10
-#define KD 4
+#define KP 5
+#define KI 100000
+#define KD 2
 #define PWM_MEDIO 350
 
 #define N_TRECHOS 9
-//#define PID
+
+//#define DEBUG_PRINTS
+
 int32_t erro = 0, erro_a = 0;
 int32_t dist_percorrida = 0;
+bool run = false;
+uint32_t trecho = 0;
+const int32_t dist[N_TRECHOS] = {50,	150,	550,	751,	1551,	1752,	2152,	2252,	2302};
+const int32_t speedX[N_TRECHOS] = {800, 500, 500, 500, 500, 500, 500, 500, 500};
+const int32_t speedW[N_TRECHOS] = {0, 415, 0, -415, 0, 415, 0, -415, 0};
 
 /**
   * @brief Programa Principal
   */
 int main(void)
 {
-	uint32_t trecho = 0;
-	int32_t dist[N_TRECHOS] = {50, 129, 199, 356, 580, 737, 807, 886, 936};
-	int32_t speedX[N_TRECHOS] = {500, 500, 500, 500, 500, 500, 500, 500, 500};
-	int32_t speedW[N_TRECHOS] = {0, 415, 0, -415, 0, 415, 0, -415, 0};
-
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	HAL_Init();
 
@@ -47,15 +50,18 @@ int main(void)
 
 	targetSpeedX = SPEED_TO_COUNTS(2 * speedX[trecho]);
 	targetSpeedW = SPEED_TO_COUNTS(speedW[trecho]);
-	accX = 50;
-	decX = 50;
+	accX = 100;
+	decX = 100;
 	accW = 50;
 	decW = 50;
 
+	printf("Programa TUR5 - uMaRT LITE+ V1.1\r\n");
+	delay_ms(100);
 
-	printf("Programa DEMO - uMaRT LITE+ V1.1\r\n");
+	// Leitura da Bateria, gera um alerta quando a tensão for menor que 7,00V
 	if(getTensao() > VBAT_ALERTA)
 	{
+		printf("Bateria: %d mV\r\n", getTensao());
 		beeps(1, 50, 50);
 		allLEDs(HIGH);
 	}
@@ -66,82 +72,100 @@ int main(void)
 		beep(500);
 		while(1) delay_ms(1000);
 	}
-	while(getSW1() == LOW);
+
+	// Loop enquanto o botão de start não é pressionado
+	// Neste momento que é realizada a leitura/gravação dos parâmetros do robô
+	while(getSW1() == LOW)
+	{
+		if(HAL_UART_GetState(&huart1) == HAL_UART_STATE_READY)
+		{
+			HAL_UART_Receive_IT(&huart1, &RxByte, 1);
+		}
+
+		if(rx_available > 0)
+		{
+			printf("%s\n", RxBuffer);
+
+			if (strcmp(RxBuffer, "GET\r") == 0)
+			{
+				printf("Envia os parametros ao celular!\r\n");
+			}
+			else if (strcmp(RxBuffer, "SET\r") == 0)
+			{
+				printf("Recebe os parametros do celular!\r\n");
+			}
+			else
+			{
+				printf("ERRO\r\n");
+			}
+
+			rx_available = 0;
+			memset(RxBuffer, 0, BUFFER_SIZE);
+		}
+
+		//writeFlash(dist, N_TRECHOS);
+		//uint32_t buf[N_TRECHOS];
+		//readFlash(buf, N_TRECHOS);
+	}
+
+
+	printf("Inicio em: %d us\r\n", micros());
 	beep(200);
 	delay_ms(1000);
 	allLEDs(LOW);
-	//setMotores(PWM_MEDIO, PWM_MEDIO);
-
-	printf("Microsegundos: %d\r\n", micros());
 
 	resetLeftEncCount();
 	resetRightEncCount();
 	speedProfileConfig();
+	run = true;
 
 	// Loop infinito
 	while (1)
 	{
-		//setMotores(100, 500);
-		delay_ms(100);
-		//int32_t erro = getSensoresLinha();
-		int32_t erro = readLine();
-		printf("Error: %d\r\n", erro);
-		allLEDs(LOW);
-		if(erro > 0 && erro != INFINITO) setLED(LED3, HIGH);
-		else if(erro < 0) setLED(LED1, HIGH);
-		else if(erro == 0) setLED(LED2, HIGH);
-		else allLEDs(HIGH);
-		//printf("Microsegundos: %d\r\n", micros());
-		//setMotores(0, 0);
-		//delay_us(1000005);
-		/*delay_ms(1000);
-		printf("Error: %d\r\n", getSensoresLinha());
-		printf("Left: %d | Right: %d\r\n", getLeftEncCount(), getRightEncCount());
-		printf("RAW Battery: %d\r\n", getTensao());
-		printf("RAW Gyro: %d\r\n", getGyro());*/
-		//printf("Distance Left: %d\r\n", speedProfile());
-
-		/*if(dist_percorrida >= dist[trecho])
+		if(HAL_UART_GetState(&huart1) == HAL_UART_STATE_READY)
 		{
-			toggleLED(LED4);
-			trecho++;
-			if(trecho < N_TRECHOS)
+			HAL_UART_Receive_IT(&huart1, &RxByte, 1);
+		}
+
+		if(rx_available > 0)
+		{
+			printf("%s\n", RxBuffer);
+
+			if (strcmp(RxBuffer, "STOP\r") == 0)
 			{
-				targetSpeedX = SPEED_TO_COUNTS(2 * speedX[trecho]);
-				targetSpeedW = SPEED_TO_COUNTS(speedW[trecho]);
+				printf("Freia o robo!\r\n");
+			}
+			else if (strcmp(RxBuffer, "START\r") == 0)
+			{
+				printf("Reinicia o robo!\r\n");
 			}
 			else
 			{
-				targetSpeedX = 0;
-				targetSpeedW = 0;
-				while(1) delay_ms(1000);
+				printf("ERRO\r\n");
 			}
+
+			rx_available = 0;
+			memset(RxBuffer, 0, BUFFER_SIZE);
 		}
-		delay_ms(1);*/
 	}
 }
 
 
 void systick(void)
 {
-#ifdef PID
-	if(run == true)
+#ifdef DEBUG_PRINTS
+	static uint32_t ticks = 0;
+
+	if (++ticks >= 1000 && run == true)
 	{
-		int32_t MV = 0;
+		printf("Erro: %d\r\n", erro);
+		printf("Encoders: %d | %d\r\n", getLeftEncCount(), getRightEncCount());
+		printf("Bateria: %d mV\r\n", getTensao());
+		printf("Gyro: %d\r\n", getGyro());
+		printf("Distancia percorrida: %d mm\r\n", COUNTS_TO_MM(getEncoderStatus()));
+		printf("\r\n");
 
-		erro_a = erro;
-		erro = getSensoresLinha();
-		allLEDs(LOW);
-		if(erro > 0 && erro != INFINITO) setLED(LED3, HIGH);
-		else if(erro < 0) setLED(LED1, HIGH);
-		else if(erro == 0) setLED(LED2, HIGH);
-		else allLEDs(HIGH);
-
-		if(erro == INFINITO) erro = erro_a;
-		MV = (erro * KP) + ((erro - erro_a) * KD);
-
-		setMotores(PWM_MEDIO + MV, PWM_MEDIO - MV);
-
+		ticks = 0;
 	}
 #endif
 }
@@ -154,5 +178,46 @@ void systick(void)
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	//dist_percorrida = speedProfile();
+	int32_t MV = 0;
+	static int32_t integral = 0;
+
+	// Leitura dos sensores e indicação pelos LEDs
+	erro_a = erro;
+	erro = readLine();
+	allLEDs(LOW);
+	if (erro > 0 && erro != INFINITO) setLED(LED3, HIGH);
+	else if (erro < 0) setLED(LED1, HIGH);
+	else if (erro == 0) setLED(LED2, HIGH);
+	else allLEDs(HIGH);
+
+	// Tratamento para quando não ler linha
+	if(erro == INFINITO)
+	{
+		erro = erro_a;
+	}
+
+	// Controlador PID
+	integral += erro;
+	MV = (erro / KP) + (integral / KI) + ((erro - erro_a) * KD);
+	targetSpeedW = MV;
+	controlMotorPwm();
+
+	//dist_percorrida = speedProfile(MV);
+
+	/*if(dist_percorrida >= dist[trecho] && run == true)
+	{
+		toggleLED(LED4);
+		trecho++;
+		if(trecho < N_TRECHOS)
+		{
+			targetSpeedX = SPEED_TO_COUNTS(2 * speedX[trecho]);
+			targetSpeedW = SPEED_TO_COUNTS(speedW[trecho]);
+		}
+		else
+		{
+			targetSpeedX = 0;
+			targetSpeedW = 0;
+			run = false;
+		}
+	}*/
 }
