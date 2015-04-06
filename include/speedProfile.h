@@ -18,10 +18,10 @@
 #include "motores.h"
 
 /* Constantes ----------------------------------------------------------------*/
-#define KP_X 10
-#define KD_X 0
-#define KP_W 10
-#define KD_W 10
+#define KP_X 3
+#define KD_X 1
+#define KP_W 3
+#define KD_W 1
 
 #define TS 5	// Tempo de atualização em [ms]
 
@@ -42,15 +42,18 @@
 #define COUNTS_TO_MM(cnt)	(((cnt) * 1000) / CNT_PER_1000MM)
 /* Protótipos das Funções --------------------------------------------------- */
 void speedProfileConfig(void);
+void resetSpeedProfile(void);
 int32_t speedProfile(void);
 int32_t getEncoderStatus(void);
 void updateCurrentSpeed(void);
 void calculateMotorPwm(void);
+void controlMotorPwm(void);
 
 
 extern TIM_HandleTypeDef htim3;
 extern int32_t targetSpeedX, targetSpeedW;
 extern int32_t accX, decX, accW, decW;
+extern int32_t distance_mm;
 
 
 #endif /* __SPEEDPROFILE_H */

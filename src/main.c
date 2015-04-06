@@ -16,7 +16,10 @@
 #define KD 2
 #define PWM_MEDIO 350
 
-#define N_TRECHOS 9
+#define ESQUERDA 1
+#define DIREITA 2
+
+#define N_TRECHOS 8
 
 #define CASO 3
 //#define DEBUG_PRINTS
@@ -25,22 +28,29 @@ int32_t erro = 0, erro_a = 0;
 int32_t dist_percorrida = 0;
 int32_t dist_aux = 0;
 bool run = false;
-uint32_t trecho = 0;
-uint32_t loop_cnt = 0;
+uint32_t trecho = 0, curva_90 = 0, curva_90_aux = 0;
+uint32_t desv_cnt = 0, loop_cnt = 0;
 const int32_t dist[N_TRECHOS] = {50,	150,	550,	751,	1551,	1752,	2152,	2252,	2302};
-const int32_t speedX[N_TRECHOS] = {800, 500, 500, 500, 500, 500, 500, 500, 500};
+const int32_t speedX[N_TRECHOS] = {500, 500, 500, 500, 500, 500, 500, 500, 500};
 const int32_t speedW[N_TRECHOS] = {0, 415, 0, -415, 0, 415, 0, -415, 0};
 
+const int32_t param_speedX = 800;
+
+// Desvio
+const uint32_t param_desv_d1 = 2500;
+
 // Caso 1:
-//const uint32_t param_loop_d1 = 500, param_loop_d2 = 1000, param_loop_d3 = 2500, param_offset = 700;
+//const uint32_t param_loop_d1 = 500, param_loop_d2 = 1000, param_loop_d3 = 2500, param_offset = 300;
 
 // Caso 2:
-//const uint32_t param_loop_d1 = 1000, param_loop_d2 = 1000, param_loop_d3 = 1000, param_loop_d4 = 2500, param_90_d1 = 100, param_90_erro = 2000;
+//const uint32_t param_loop_d1 = 1000, param_loop_d2 = 1000, param_loop_d3 = 1000, param_loop_d4 = 2500;
 
 // Caso 3:
 const uint32_t param_loop_d1 = 500, param_loop_d2 = 2000, param_loop_d3 = 1000,
-		param_loop_d4 = 1000, param_loop_d5 = 2500, param_offset = 700,
-		param_90_d1 = 100, param_90_erro = 2000;
+		param_loop_d4 = 1000, param_loop_d5 = 2500, param_offset = 700;
+
+
+const int32_t param_90_v1 = -100, param_90_v2 = 500, param_90_cnt = 600, param_90_erro = 0;
 
 /**
   * @brief Programa Principal
@@ -62,10 +72,10 @@ int main(void)
 	usart1Config();
 
 
-	targetSpeedX = SPEED_TO_COUNTS(2 * speedX[trecho]);
+	targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX);
 	targetSpeedW = SPEED_TO_COUNTS(speedW[trecho]);
-	accX = 100;
-	decX = 100;
+	accX = 50;
+	decX = 50;
 	accW = 50;
 	decW = 50;
 
@@ -161,6 +171,49 @@ int main(void)
 			rx_available = 0;
 			memset(RxBuffer, 0, BUFFER_SIZE);
 		}
+
+		if (distance_mm >= dist[trecho] && (desv_cnt == 1))
+		{
+			beep(50);
+			trecho++;
+			if(trecho < N_TRECHOS)
+			{
+				targetSpeedX = SPEED_TO_COUNTS(2 * speedX[trecho]);
+				targetSpeedW = SPEED_TO_COUNTS(speedW[trecho]);
+			}
+			else
+			{
+				// Ao acabar o desvio volta para o controle normal
+				targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX);
+				desv_cnt = 2;
+				run = true;
+			}
+		}
+
+		if (curva_90 == ESQUERDA)
+		{
+			setMotores(param_90_v1, param_90_v2);
+			if ((getRightEncCount() - curva_90_aux) > param_90_cnt)
+			{
+				erro = -param_90_erro;
+				run = true;
+				curva_90 = 0;
+				curva_90_aux = 0;
+			}
+		}
+		else if (curva_90 == DIREITA)
+		{
+			setMotores(param_90_v2, param_90_v1);
+			if ((getLeftEncCount() - curva_90_aux) > param_90_cnt)
+			{
+				erro = param_90_erro;
+				run = true;
+				curva_90 = 0;
+				curva_90_aux = 0;
+			}
+		}
+
+		delay_ms(1);
 	}
 }
 
@@ -177,6 +230,7 @@ void systick(void)
 		printf("Bateria: %d mV\r\n", getTensao());
 		printf("Gyro: %d\r\n", getGyro());
 		printf("Distancia percorrida: %d mm\r\n", COUNTS_TO_MM(getEncoderStatus()));
+		printf("Distacia do obstaculo: %d\r\n", readWall());
 		printf("\r\n");
 
 		ticks = 0;
@@ -210,38 +264,39 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		erro = erro_a;
 	}
 
-	tratamento_loop();
+	if (desv_cnt <= 1) tratamento_desvio();
+	//tratamento_loop();
 
 	// Controlador PID
-	integral += erro;
-	MV = (erro / KP) + (integral / KI) + ((erro - erro_a) * KD);
-	targetSpeedW = MV;
-	if (run == true) controlMotorPwm();
-
-	//dist_percorrida = speedProfile(MV);
-
-	/*if(dist_percorrida >= dist[trecho] && run == true)
+	if (run == true)
 	{
-		toggleLED(LED4);
-		trecho++;
-		if(trecho < N_TRECHOS)
-		{
-			targetSpeedX = SPEED_TO_COUNTS(2 * speedX[trecho]);
-			targetSpeedW = SPEED_TO_COUNTS(speedW[trecho]);
-		}
-		else
-		{
-			targetSpeedX = 0;
-			targetSpeedW = 0;
-			run = false;
-		}
-	}*/
+		integral += erro;
+		MV = (erro / KP) + (integral / KI) + ((erro - erro_a) * KD);
+		targetSpeedW = MV;
+		controlMotorPwm();
+	}
+
+
 }
 
 
 void tratamento_desvio(void)
 {
+	// Reseta o encoder (um pouco antes de acabar a linha) para habilitar o speedProfile()
+	if ((distance_mm >= param_desv_d1) && (desv_cnt == 0))
+	{
+		run = false;
+		printf("-- DESVIO --\r\n");
+		beep(500);
+		desv_cnt = 1;
 
+		resetSpeedProfile();
+		targetSpeedX = SPEED_TO_COUNTS(2 * speedX[trecho]);
+		targetSpeedW = SPEED_TO_COUNTS(speedW[trecho]);
+	}
+
+	// Executa o speedProfile() com os parâmetros do desvio
+	if (desv_cnt == 1) speedProfile();
 }
 
 void tratamento_posRampa(void)
@@ -309,18 +364,18 @@ void tratamento_loop(void)
 		dist_aux = distance_mm;
 
 		printf("-- 90 GRAUS A ESQUERDA --\r\n");
-		beep(100);
+		beep(50);
 		loop_cnt = 1;
+
+		curva_90 = ESQUERDA;
+		curva_90_aux = getRightEncCount();
+		run = false;
 	}
-	if (loop_cnt == 1)
+	if (((distance_mm - dist_aux) >= param_loop_d1) && (loop_cnt == 1))
 	{
-		if(((distance_mm - dist_aux) <= param_90_d1)) erro = -param_90_erro;
-		else if ((distance_mm - dist_aux) >= param_loop_d1)
-		{
-			printf("-- VOLTOU AO NORMAL --\r\n");
-			beep(100);
-			loop_cnt = 2;
-		}
+		printf("-- VOLTOU AO NORMAL --\r\n");
+		beep(50);
+		loop_cnt = 2;
 	}
 
 	// Primeira curva de 90 graus à direita
@@ -329,18 +384,18 @@ void tratamento_loop(void)
 		dist_aux = distance_mm;
 
 		printf("-- 1a. 90 GRAUS A DIREITA --\r\n");
-		beep(100);
+		beep(50);
 		loop_cnt = 3;
+
+		curva_90 = DIREITA;
+		curva_90_aux = getLeftEncCount();
+		run = false;
 	}
-	if (loop_cnt == 3)
+	if (((distance_mm - dist_aux) >= param_loop_d2) && (loop_cnt == 3))
 	{
-		if(((distance_mm - dist_aux) <= param_90_d1)) erro = param_90_erro;
-		else if ((distance_mm - dist_aux) >= param_loop_d2)
-		{
-			printf("-- VOLTOU AO NORMAL --\r\n");
-			beep(100);
-			loop_cnt = 4;
-		}
+		printf("-- VOLTOU AO NORMAL --\r\n");
+		beep(50);
+		loop_cnt = 4;
 	}
 
 	// Segunda curva de 90 graus à direita
@@ -349,18 +404,18 @@ void tratamento_loop(void)
 		dist_aux = distance_mm;
 
 		printf("-- 2a. 90 GRAUS A DIREITA --\r\n");
-		beep(100);
+		beep(50);
 		loop_cnt = 5;
+
+		curva_90 = DIREITA;
+		curva_90_aux = getLeftEncCount();
+		run = false;
 	}
-	if (loop_cnt == 5)
+	if (((distance_mm - dist_aux) >= param_loop_d3) && (loop_cnt == 5))
 	{
-		if(((distance_mm - dist_aux) <= param_90_d1)) erro = param_90_erro;
-		else if ((distance_mm - dist_aux) >= param_loop_d3)
-		{
-			printf("-- VOLTOU AO NORMAL --\r\n");
-			beep(100);
-			loop_cnt = 6;
-		}
+		printf("-- VOLTOU AO NORMAL --\r\n");
+		beep(50);
+		loop_cnt = 6;
 	}
 
 	// Parada final na linha de chegada
@@ -413,16 +468,16 @@ void tratamento_loop(void)
 		printf("-- 1a. 90 GRAUS A ESQUERDA --\r\n");
 		beep(100);
 		loop_cnt = 4;
+
+		curva_90 = ESQUERDA;
+		curva_90_aux = getRightEncCount();
+		run = false;
 	}
-	if (loop_cnt == 4)
+	if (((distance_mm - dist_aux) >= param_loop_d3) && (loop_cnt == 4))
 	{
-		if(((distance_mm - dist_aux) <= param_90_d1)) erro = -param_90_erro;
-		else if ((distance_mm - dist_aux) >= param_loop_d3)
-		{
-			printf("-- VOLTOU AO NORMAL --\r\n");
-			beep(100);
-			loop_cnt = 5;
-		}
+		printf("-- VOLTOU AO NORMAL --\r\n");
+		beep(100);
+		loop_cnt = 5;
 	}
 
 	// Segunda curva de 90 graus à esquerda
@@ -433,16 +488,16 @@ void tratamento_loop(void)
 		printf("-- 2a. 90 GRAUS A ESQUERDA --\r\n");
 		beep(100);
 		loop_cnt = 6;
+
+		curva_90 = ESQUERDA;
+		curva_90_aux = getRightEncCount();
+		run = false;
 	}
-	if (loop_cnt == 6)
+	if (((distance_mm - dist_aux) >= param_loop_d4) && (loop_cnt == 6))
 	{
-		if(((distance_mm - dist_aux) <= param_90_d1)) erro = -param_90_erro;
-		else if ((distance_mm - dist_aux) >= param_loop_d4)
-		{
-			printf("-- VOLTOU AO NORMAL --\r\n");
-			beep(100);
-			loop_cnt = 7;
-		}
+		printf("-- VOLTOU AO NORMAL --\r\n");
+		beep(100);
+		loop_cnt = 7;
 	}
 
 	// Curva de 90 graus à esquerda no T
@@ -453,16 +508,16 @@ void tratamento_loop(void)
 		printf("-- 90 GRAUS A ESQUERDA NO T --\r\n");
 		beep(100);
 		loop_cnt = 8;
+
+		curva_90 = ESQUERDA;
+		curva_90_aux = getRightEncCount();
+		run = false;
 	}
-	if (loop_cnt == 8)
+	if (((distance_mm - dist_aux) >= param_loop_d1) && (loop_cnt == 8))
 	{
-		if(((distance_mm - dist_aux) <= param_90_d1)) erro = -param_90_erro;
-		else if ((distance_mm - dist_aux) >= param_loop_d1)
-		{
-			printf("-- BIFURCACAO DIREITA --\r\n");
-			beep(100);
-			loop_cnt = 9;
-		}
+		printf("-- BIFURCACAO DIREITA --\r\n");
+		beep(100);
+		loop_cnt = 9;
 	}
 
 	// Habilita um offset para garantir que o robô vire para direita na bifurcação

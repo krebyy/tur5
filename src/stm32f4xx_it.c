@@ -83,4 +83,17 @@ void TIM3_IRQHandler(void)
 {
   HAL_TIM_IRQHandler(&htim3);
 }
+
+
+/**
+  * @brief  This function handles UART interrupt request.
+  * @param  None
+  * @retval None
+  * @Note   This function is redefined in "main.h" and related to DMA stream
+  *         used for USART data transmission
+  */
+void USART1_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart1);
+}
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

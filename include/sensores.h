@@ -16,12 +16,17 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx.h"
 #include "delays.h"
+#include "buzzer.h"
 
 /* Constantes ----------------------------------------------------------------*/
 #define LOW		GPIO_PIN_RESET
 #define HIGH	GPIO_PIN_SET
 #define LINHA	GPIO_PIN_RESET	// RESET (linha branca); SET (linha preta)
 #define INFINITO	8888		// Valor que indica a não identificação de linha
+#define ESQUERDA_90	-3000
+#define DIREITA_90	3000
+#define AMBOS_90	3333
+#define DIST_WALL	2048
 
 #define SENSORES_CLK	__GPIOA_CLK_ENABLE(); __GPIOB_CLK_ENABLE(); __GPIOC_CLK_ENABLE(); __GPIOD_CLK_ENABLE()
 
@@ -87,8 +92,10 @@
 /* Protótipos das Funções --------------------------------------------------- */
 void sensoresConfig(void);
 int32_t getSensoresParede(int32_t*, int32_t*, int32_t*, int32_t*);
+int32_t readWall();
 int32_t getSensoresLinha();
 int32_t readLine();
+int32_t readSpecial();
 int32_t getGyro();
 int32_t getTensao();
 uint32_t getRawADC(uint32_t canal);

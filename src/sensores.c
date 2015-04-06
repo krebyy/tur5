@@ -153,6 +153,40 @@ int32_t getSensoresParede(int32_t* lf, int32_t* l, int32_t* r, int32_t* rf)
 
 
 /**
+  * @brief Verifca os sensores frontais de parede
+  * @return wall
+  */
+int32_t readWall()
+{
+	int32_t wall = 0;
+
+	int32_t lf = getRawADC(LF_R_CH);
+	int32_t rf = getRawADC(RF_R_CH);
+
+	// Registra o tempo atual
+	uint32_t t0 = micros();
+
+	// Sensor frontal esquerdo
+	HAL_GPIO_WritePin(LF_E_PORT, LF_E_PIN, HIGH);
+	elapse_us(80, t0);
+	lf = getRawADC(LF_R_CH) - lf;
+	HAL_GPIO_WritePin(LF_E_PORT, LF_E_PIN, LOW);
+	if(lf < 0) lf = 0;
+	elapse_us(160, t0);
+
+	// Sensor frontal direito
+	HAL_GPIO_WritePin(RF_E_PORT, RF_E_PIN, HIGH);
+	elapse_us(240, t0);
+	rf = getRawADC(RF_R_CH) - rf;
+	HAL_GPIO_WritePin(RF_E_PORT, RF_E_PIN, LOW);
+	if(rf < 0) rf = 0;
+
+	wall = (lf + rf) / 2;
+
+	return wall;
+}
+
+/**
   * @brief Verifica os sensores de linha
   * @param Nenhum
   * @return erro Valores negativos (delocado para direita), valores positivos
@@ -306,6 +340,48 @@ int32_t readLine()
 	}
 
 	return erro;
+}
+
+
+/**
+  * @brief Realiza a leitura dos sensores para identificar os casos especiais
+  * de curva de 90 graus, bifurcação e entroncamento
+  * @param Nenhum
+  * @return estado: ESQUERDA_90, DIREITA_90, AMBOS_90
+  */
+int32_t readSpecial()
+{
+	int32_t estado = 0;
+	int32_t n_e = 0, n_d = 0;
+	uint32_t t0 = micros();
+
+	// Habilita os emissores
+	HAL_GPIO_WritePin(L_LINE_PORT, L_LINE_PIN, HIGH);
+	HAL_GPIO_WritePin(R_LINE_PORT, R_LINE_PIN, HIGH);
+	elapse_us(100, t0);
+
+	// Realiza a leitura de todos os sensores de linha, os sensores das
+	// extremidades pussuem peso maior, no final é realizada a média ponderada
+	if(HAL_GPIO_ReadPin(LINE1_PORT, LINE1_PIN) == LINHA) n_e += 10;
+	if(HAL_GPIO_ReadPin(LINE2_PORT, LINE2_PIN) == LINHA) n_e++;
+	if(HAL_GPIO_ReadPin(LINE3_PORT, LINE3_PIN) == LINHA) n_e++;
+	if(HAL_GPIO_ReadPin(LINE4_PORT, LINE4_PIN) == LINHA) n_e++;
+	if(HAL_GPIO_ReadPin(LINE5_PORT, LINE5_PIN) == LINHA) n_d++;
+	if(HAL_GPIO_ReadPin(LINE6_PORT, LINE6_PIN) == LINHA) n_d++;
+	if(HAL_GPIO_ReadPin(LINE7_PORT, LINE7_PIN) == LINHA) n_d++;
+	if(HAL_GPIO_ReadPin(LINE8_PORT, LINE8_PIN) == LINHA) n_d += 10;
+
+	// Desabilita os emissores
+	HAL_GPIO_WritePin(L_LINE_PORT, L_LINE_PIN, LOW);
+	HAL_GPIO_WritePin(R_LINE_PORT, R_LINE_PIN, LOW);
+
+	if(n_e >= 12 && n_d >= 12) estado = AMBOS_90;
+	else if(n_e >= 12) estado = ESQUERDA_90;
+	else if(n_d >= 12) estado = DIREITA_90;
+
+	//if(estado != 0) beep(200);
+
+	return estado;
 }
 
 

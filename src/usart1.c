@@ -12,6 +12,9 @@
 #include "usart1.h"
 
 UART_HandleTypeDef huart1;
+uint8_t RxBuffer[BUFFER_SIZE];
+uint8_t RxByte;
+uint32_t rx_available = 0;
 
 /**
   * @brief Configuração da USART1
@@ -34,7 +37,7 @@ void usart1Config(void)
 
 	// Configuração do periférico USART
 	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 115200;
+	huart1.Init.BaudRate = BAUD_RATE;
 	huart1.Init.WordLength = UART_WORDLENGTH_8B;
 	huart1.Init.StopBits = UART_STOPBITS_1;
 	huart1.Init.Parity = UART_PARITY_NONE;
@@ -42,11 +45,43 @@ void usart1Config(void)
 	huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	huart1.Init.OverSampling = UART_OVERSAMPLING_16;
 	HAL_UART_Init(&huart1);
+
+	HAL_NVIC_SetPriority(USARTx_IRQn, 1, 1);
+	HAL_NVIC_EnableIRQ(USARTx_IRQn);
 }
+
+
+/**
+  * @brief  Rx Transfer completed callback
+  * @param  UartHandle: UART handle
+  * @note   This example shows a simple way to report end of IT Rx transfer, and
+  *         you can add your own implementation.
+  * @retval None
+  */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
+{
+    static uint32_t i = 0;
+
+    RxBuffer[i] = RxByte;
+    i++;
+    if(RxBuffer[i-1] == '\r')
+    {
+        rx_available = i;
+        i = 0;
+    }
+}
+
 
 int _write(int file, char *ptr, int len)
 {
-  HAL_UART_Transmit(&huart1, ptr, len, 1);
+	HAL_UART_Transmit(&huart1, ptr, len, 100);
 
-  return len;
+	return len;
+}
+
+int _read (int file, char *ptr, int len)
+{
+	HAL_UART_Receive(&huart1, ptr, len, 100);
+
+	return len;
 }

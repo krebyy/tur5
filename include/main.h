@@ -16,6 +16,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 #include "stm32f4xx_hal.h"
 #include "buzzer.h"
 #include "leds.h"
@@ -26,12 +27,17 @@
 #include "sensores.h"
 #include "encoders.h"
 #include "speedProfile.h"
+#include "flash.h"
 
 
 /* Constantes ----------------------------------------------------------------*/
 /* Macros --------------------------------------------------------------------*/
 /* Protótipos das Funções --------------------------------------------------- */
 void systick(void);
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
+void tratamento_desvio(void);
+void tratamento_posRampa(void);
+void tratamento_loop(void);
 
 
 #endif /* __MAIN_H */

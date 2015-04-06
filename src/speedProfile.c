@@ -17,9 +17,14 @@ TIM_HandleTypeDef htim3;
 int32_t leftEncoderChange = 0, rightEncoderChange = 0;
 int32_t encoderChange = 0, encoderCount = 0;
 
+int32_t leftEncoderOld = 0, rightEncoderOld = 0;
+int32_t leftEncoderCount = 0, rightEncoderCount = 0;
+int32_t distanceLeft = 0;
+
 int32_t curSpeedX = 0, curSpeedW = 0;
 int32_t targetSpeedX = 0, targetSpeedW = 0;
 int32_t accX = 0, decX = 0, accW = 0, decW = 0;
+int32_t distance_mm = 0;
 
 
 /**
@@ -103,12 +108,26 @@ int32_t speedProfile(void)
 	return COUNTS_TO_MM(distanceLeft);
 }
 
+void resetSpeedProfile(void)
+{
+	leftEncoderChange = 0; rightEncoderChange = 0;
+	encoderChange = 0; encoderCount = 0;
+
+	leftEncoderOld = 0; rightEncoderOld = 0;
+	leftEncoderCount = 0; rightEncoderCount = 0;
+	distanceLeft = 0;
+
+	curSpeedX = 0; curSpeedW = 0;
+	targetSpeedW = 0;
+	distance_mm = 0;
+
+	resetLeftEncCount();
+	resetRightEncCount();
+}
+
 int32_t getEncoderStatus(void)
 {
 	int32_t leftEncoder, rightEncoder;
-	static int32_t leftEncoderOld = 0, rightEncoderOld = 0;
-	static int32_t leftEncoderCount = 0, rightEncoderCount = 0;
-	static int32_t distanceLeft = 0;
 
 	leftEncoder = getLeftEncCount();
 	rightEncoder = getRightEncCount();
@@ -125,6 +144,7 @@ int32_t getEncoderStatus(void)
 	encoderCount =  (leftEncoderCount + rightEncoderCount) / 2;
 
 	distanceLeft += encoderChange;// update distanceLeft
+	distance_mm = COUNTS_TO_MM(distanceLeft);
 
 	return distanceLeft;
 }
@@ -190,11 +210,11 @@ void controlMotorPwm(void)
 
 	leftOldSpeedErrorX = leftSpeedErrorX;
 	leftSpeedErrorX = targetSpeedX - leftEncoderChange;
-	leftSpeedPwmX = 50 * leftSpeedErrorX + 1 * (leftSpeedErrorX - leftOldSpeedErrorX);
+	leftSpeedPwmX = 30 * leftSpeedErrorX + 1 * (leftSpeedErrorX - leftOldSpeedErrorX);
 
 	rightOldSpeedErrorX = rightSpeedErrorX;
 	rightSpeedErrorX = targetSpeedX - rightEncoderChange;
-	rightSpeedPwmX = 50 * rightSpeedErrorX + 1 * (rightSpeedErrorX - rightOldSpeedErrorX);
+	rightSpeedPwmX = 30 * rightSpeedErrorX + 1 * (rightSpeedErrorX - rightOldSpeedErrorX);
 
 	setMotores(leftSpeedPwmX + targetSpeedW, rightSpeedPwmX - targetSpeedW);
 }
