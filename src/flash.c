@@ -23,6 +23,9 @@ uint8_t writeFlash(uint32_t *buffer, uint32_t num_words)
 	uint32_t startAddress = ADDR_FLASH_SECTOR;
 
 	HAL_FLASH_Unlock();
+
+	FLASH_Erase_Sector(FLASH_SECTOR, VOLTAGE_RANGE_3);
+
 	for(uint32_t i = 0; i < num_words; i++)
 	{
 		if(HAL_FLASH_Program(TYPEPROGRAM_WORD,(uint32_t)(startAddress+(i*4)),*buffer)!= HAL_OK)
@@ -50,6 +53,6 @@ void readFlash(uint32_t *buffer, uint32_t num_words)
 
 	for(uint32_t i = 0; i < num_words; i++)
 	{
-		buffer[i] = *(uint16_t *)(startAddress + (i*4));
+		buffer[i] = *(uint32_t *)(startAddress + (i*4));
 	}
 }

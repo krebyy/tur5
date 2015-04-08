@@ -48,7 +48,10 @@
 
 void SysTick_Handler(void);
 void TIM3_IRQHandler(void);
-void USART1_IRQHandler(void);
+void USARTx_IRQHandler(void);
+
+//extern uint8_t RxBuffer[10];
+//extern uint32_t rx_available;
 
 #ifdef __cplusplus
 }

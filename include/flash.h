@@ -19,6 +19,7 @@
 
 /* Constantes ----------------------------------------------------------------*/
 #define	ADDR_FLASH_SECTOR	0x080E0000	// Endereço do setor utilizado - Setor 11 do STM32F405
+#define FLASH_SECTOR		FLASH_SECTOR_11
 /* Macros --------------------------------------------------------------------*/
 /* Protótipos das Funções --------------------------------------------------- */
 uint8_t writeFlash(uint32_t *buffer, uint32_t num_words);

@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "stm32f4xx_hal.h"
+#include "stm32f4xx_it.h"
 #include "buzzer.h"
 #include "leds.h"
 #include "motores.h"
@@ -36,8 +37,10 @@
 void systick(void);
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 void tratamento_desvio(void);
-void tratamento_posRampa(void);
+void tratamento_rampa(void);
 void tratamento_loop(void);
+void parametros_defaut(void);
+void init_paramentros(void);
 
 
 #endif /* __MAIN_H */

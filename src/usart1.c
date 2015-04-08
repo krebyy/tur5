@@ -46,8 +46,12 @@ void usart1Config(void)
 	huart1.Init.OverSampling = UART_OVERSAMPLING_16;
 	HAL_UART_Init(&huart1);
 
-	HAL_NVIC_SetPriority(USARTx_IRQn, 1, 1);
+	HAL_NVIC_SetPriority(USARTx_IRQn, 1, 0);
 	HAL_NVIC_EnableIRQ(USARTx_IRQn);
+
+	//__HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+
+	//HAL_UART_IRQHandler(&huart1);
 }
 
 
@@ -60,15 +64,33 @@ void usart1Config(void)
   */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
 {
-    static uint32_t i = 0;
+    /*static uint32_t i = 0;
 
     RxBuffer[i] = RxByte;
     i++;
-    if(RxBuffer[i-1] == '\r')
+    if(RxBuffer[i-1] == '\r' || RxBuffer[i-1] == 'I' || RxBuffer[i-1] == 'P' || RxBuffer[i-1] == 'S' || RxBuffer[i-1] == 'G')
     {
         rx_available = i;
         i = 0;
-    }
+    }*/
+
+    static uint32_t pos = 0;
+
+    //beep(50);
+
+	RxBuffer[pos] = RxByte;//USART1->DR; // alimentou o Buffer
+	//printf("%s\r\n", RxBuffer);
+
+	HAL_UART_Receive_IT(UartHandle, &RxByte, 1);
+
+	pos++;
+	if (RxBuffer[pos - 1] == '\n')
+	{
+		//printf("%s\n", RxBuffer);
+		rx_available = pos;
+		pos = 0;
+	}
+
 }
 
 

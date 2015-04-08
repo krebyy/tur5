@@ -41,6 +41,8 @@
 
 /* USER CODE END 0 */
 /* External variables --------------------------------------------------------*/
+//uint8_t RxBuffer[10];
+//uint32_t rx_available = 0;
 
 /******************************************************************************/
 /*            Cortex-M4 Processor Interruption and Exception Handlers         */ 
@@ -89,11 +91,9 @@ void TIM3_IRQHandler(void)
   * @brief  This function handles UART interrupt request.
   * @param  None
   * @retval None
-  * @Note   This function is redefined in "main.h" and related to DMA stream
-  *         used for USART data transmission
   */
 void USART1_IRQHandler(void)
 {
-  HAL_UART_IRQHandler(&huart1);
+	HAL_UART_IRQHandler(&huart1);
 }
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
