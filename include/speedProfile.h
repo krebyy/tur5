@@ -55,5 +55,7 @@ extern int32_t targetSpeedX, targetSpeedW;
 extern int32_t accX, decX, accW, decW;
 extern int32_t distance_mm;
 
+extern int32_t desvioW;
+
 
 #endif /* __SPEEDPROFILE_H */

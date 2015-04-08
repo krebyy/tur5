@@ -21,6 +21,8 @@ int32_t leftEncoderOld = 0, rightEncoderOld = 0;
 int32_t leftEncoderCount = 0, rightEncoderCount = 0;
 int32_t distanceLeft = 0;
 
+int32_t desvioW = 0;
+
 int32_t curSpeedX = 0, curSpeedW = 0;
 int32_t targetSpeedX = 0, targetSpeedW = 0;
 int32_t accX = 0, decX = 0, accW = 0, decW = 0;
@@ -228,11 +230,11 @@ void controlMotorPwm(void)
 	getEncoderStatus();
 
 	leftOldSpeedErrorX = leftSpeedErrorX;
-	leftSpeedErrorX = targetSpeedX - leftEncoderChange;
+	leftSpeedErrorX = targetSpeedX + desvioW - leftEncoderChange;
 	leftSpeedPwmX = 10 * leftSpeedErrorX + 1 * (leftSpeedErrorX - leftOldSpeedErrorX);
 
 	rightOldSpeedErrorX = rightSpeedErrorX;
-	rightSpeedErrorX = targetSpeedX - rightEncoderChange;
+	rightSpeedErrorX = targetSpeedX - desvioW - rightEncoderChange;
 	rightSpeedPwmX = 10 * rightSpeedErrorX + 1 * (rightSpeedErrorX - rightOldSpeedErrorX);
 
 	oldSpeedErrorX = speedErrorX;

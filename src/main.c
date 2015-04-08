@@ -17,7 +17,7 @@
 #define N_TRECHOS 8
 #define N_PARAMETROS 33
 
-//#define TRATAMENTOS
+#define TRATAMENTOS
 
 #define ENABLE_DESVIO
 #define ENABLE_RAMPA
@@ -195,7 +195,7 @@ int main(void)
 		}
 
 
-		if (distance_mm >= desvio_d[trecho] && (desv_cnt == 1))	// ------------- SPEEDPROFILE DO DESVIO
+		/*if (distance_mm >= desvio_d[trecho] && (desv_cnt == 1))	// ------------- SPEEDPROFILE DO DESVIO
 		{
 			beep(50);
 			trecho++;
@@ -213,7 +213,40 @@ int main(void)
 				dist_aux = distance_mm;
 				run = true;
 			}
-		}
+		}*/
+		/*if (desv_cnt == 1)
+		{
+			desvioW = SPEED_TO_COUNTS(2 * desvio_d[0]);
+			while (((distance_mm - dist_aux) <= desvio_d[1]))
+			{
+				controlMotorPwm();
+				delay_ms(5);
+			}
+			dist_aux = distance_mm;
+
+			desvioW = -SPEED_TO_COUNTS(2 * desvio_d[2]);
+			while (((distance_mm - dist_aux) <= desvio_d[3]))
+			{
+				controlMotorPwm();
+				delay_ms(5);
+			}
+			dist_aux = distance_mm;
+
+			desvioW = SPEED_TO_COUNTS(2 * desvio_d[4]);
+			while (((distance_mm - dist_aux) <= desvio_d[5]))
+			{
+				controlMotorPwm();
+				delay_ms(5);
+			}
+			dist_aux = distance_mm;
+
+			targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_med);
+			desvioW = 0;
+			desv_cnt = 2;
+			rampa_cnt = 1;
+			//dist_aux = distance_mm;
+			run = true;
+		}*/
 
 
 		if (curva_90 == ESQUERDA)	// ----------------------------------------- CURVAS DE 90
@@ -300,9 +333,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 
 #ifdef TRATAMENTOS
-	if (desv_cnt <= 1) tratamento_desvio();
-	else if (rampa_cnt <= 6) tratamento_rampa();
-	else tratamento_loop();
+	if (desv_cnt <= 3) tratamento_desvio();
+	//else if (rampa_cnt <= 6) tratamento_rampa();
+	//else tratamento_loop();
 #endif
 
 	// Controlador PID
@@ -325,18 +358,52 @@ void tratamento_desvio(void)
 	// Reseta o encoder (um pouco antes de acabar a linha) para habilitar o speedProfile()
 	if ((distance_mm >= param_desv_d0) && (desv_cnt == 0))
 	{
+		dist_aux = distance_mm;
 		run = false;
 		printf("-- DESVIO --\r\n");
 		beep(500);
+
+		targetSpeedX = SPEED_TO_COUNTS(2 * param_desv_sX);
+		desvioW = SPEED_TO_COUNTS(2 * desvio_d[0]);
 		desv_cnt = 1;
 
-		resetSpeedProfile();
-		targetSpeedX = SPEED_TO_COUNTS(2 * param_desv_sX);
-		targetSpeedW = SPEED_TO_COUNTS(desvio_sW[trecho]);
+		//resetSpeedProfile();
+		//targetSpeedX = SPEED_TO_COUNTS(2 * param_desv_sX);
+		//targetSpeedW = SPEED_TO_COUNTS(desvio_sW[trecho]);
 	}
 
+	if (((distance_mm - dist_aux) >= desvio_d[1]) && (desv_cnt == 1))
+	{
+		dist_aux = distance_mm;
+		desvioW = -SPEED_TO_COUNTS(2 * desvio_d[2]);
+		desv_cnt = 2;
+	}
+
+	if (((distance_mm - dist_aux) >= desvio_d[3]) && (desv_cnt == 2))
+	{
+		dist_aux = distance_mm;
+		desvioW = SPEED_TO_COUNTS(2 * desvio_d[4]);
+		desv_cnt = 3;
+	}
+
+	if (desv_cnt > 0) controlMotorPwm();
+
+	if (((distance_mm - dist_aux) >= desvio_d[5]) && (desv_cnt == 3))
+	{
+		dist_aux = distance_mm;
+
+		//targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_med);
+		desvioW = 0;
+		desv_cnt = 4;
+		rampa_cnt = 1;
+		setMotores(0, 0);
+		//run = true;
+	}
+
+
+
 	// Executa o speedProfile() com os parâmetros do desvio
-	if (desv_cnt == 1) speedProfile();
+	//if (desv_cnt == 1) speedProfile();
 }
 #endif
 
@@ -689,7 +756,7 @@ void init_parametros(void)
 	param_loop_d5 = buf[32];
 
 	desvio_sW[0] = 0;
-	desvio_sW[1] = param_desv_sW;
+	desvio_sW[1] = 830;//param_desv_sW * 3; // param_desv_sW
 	desvio_sW[2] = 0;
 	desvio_sW[3] = -param_desv_sW;
 	desvio_sW[4] = 0;
