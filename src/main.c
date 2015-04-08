@@ -31,7 +31,7 @@ int32_t dist_percorrida = 0;
 int32_t dist_aux = 0;
 bool run = false;
 uint32_t trecho = 0, curva_90 = 0, curva_90_aux = 0;
-uint32_t desv_cnt = 0, loop_cnt = 0;
+uint32_t desv_cnt = 0, rampa_cnt = 0, loop_cnt = 0;
 
 uint32_t param_speedX_med, param_speedX_min, param_speedX_max;
 int32_t param_pid_kp, param_pid_ki, param_pid_kd, param_pid_offset;
@@ -130,7 +130,7 @@ int main(void)
 					rx_param = 0;
 					writeFlash(buf, N_PARAMETROS);
 					init_parametros();
-					printf("Parâmetros recebidos com sucesso!\r\n");
+					printf("Parametros recebidos com sucesso!\r\n");
 					beep(100);
 				}
 			}
@@ -209,6 +209,7 @@ int main(void)
 				// Ao acabar o desvio volta para o controle normal
 				targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_med);
 				desv_cnt = 2;
+				rampa_cnt = 1;
 				dist_aux = distance_mm;
 				run = true;
 			}
@@ -236,6 +237,14 @@ int main(void)
 				curva_90 = 0;
 				curva_90_aux = 0;
 			}
+		}
+
+		if (rampa_cnt == 7)	// ------------------------------------------------- LOMBADA ELETRONICA
+		{
+			delay_ms(param_rampa_t1);
+			targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_med);
+			run = true;
+			rampa_cnt = 8;
 		}
 
 		delay_ms(1);
@@ -292,8 +301,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 #ifdef TRATAMENTOS
 	if (desv_cnt <= 1) tratamento_desvio();
-	if (desv_cnt >= 2) tratamento_rampa();
-	tratamento_loop();
+	else if (rampa_cnt <= 6) tratamento_rampa();
+	else tratamento_loop();
 #endif
 
 	// Controlador PID
@@ -336,9 +345,61 @@ void tratamento_desvio(void)
 #ifdef ENABLE_RAMPA
 void tratamento_rampa(void)
 {
-	if (((distance_mm - dist_aux) >= param_rampa_d1) && (desv_cnt == 2))
+	if (((distance_mm - dist_aux) >= param_rampa_d1) && (rampa_cnt == 1))
 	{
+		printf("-- INICIO DA RETA DA RAMPA --\r\n");
+		beep(50);
+		rampa_cnt = 2;
+	}
 
+	if (((distance_mm - dist_aux) >= param_rampa_d2) && (rampa_cnt == 2))
+	{
+		printf("-- PREPARA PARA CURVA DE 90 --\r\n");
+		beep(50);
+		rampa_cnt = 3;
+	}
+
+	// 90 graus à esquerda, registra a distância de referência
+	if ((readSpecial() == ESQUERDA_90) && (rampa_cnt == 3))
+	{
+		dist_aux = distance_mm;
+
+		printf("-- 90 GRAUS A ESQUERDA --\r\n");
+		beep(50);
+		rampa_cnt = 4;
+
+		curva_90 = ESQUERDA;
+		curva_90_aux = getRightEncCount();
+		run = false;
+	}
+
+	// Habilita um offset para garantir que o robô vire para esquerda na bifurcação
+	if (((distance_mm - dist_aux) >= param_rampa_d3) && (rampa_cnt == 4))
+	{
+		printf("-- BIFURCACAO ESQUERDA --\r\n");
+		beep(50);
+		rampa_cnt = 5;
+	}
+	if(rampa_cnt == 5)
+	{
+		// Desloca o robô para esquerda durante um pequeno trecho
+		erro -= param_pid_offset;
+		if((distance_mm - dist_aux) >= (param_rampa_d3 + 1000))
+		{
+			printf("-- VOLTOU AO NORMAL --\r\n");
+			beep(50);
+			rampa_cnt = 6;
+		}
+	}
+
+	// Lombada eletrônica
+	if (((distance_mm - dist_aux) >= param_rampa_d4) && (rampa_cnt == 6))
+	{
+		run = false;
+		setMotores(0, 0);
+		printf("-- LOMBADA ELETRONICA --\r\n");
+		beep(50);
+		rampa_cnt = 7;
 	}
 }
 #endif
