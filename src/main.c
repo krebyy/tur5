@@ -17,13 +17,14 @@
 #define N_TRECHOS 8
 #define N_PARAMETROS 33
 
-#define TRATAMENTOS
+#define TRATAMENTO_GERAL
+//#define TRATAMENTO_POS_RAMPA
 
 #define ENABLE_DESVIO
 #define ENABLE_RAMPA
 #define ENABLE_LOOP
 
-#define CASO 2
+#define CASO 1
 //#define DEBUG_PRINTS
 
 int32_t erro = 0, erro_a = 0;
@@ -65,6 +66,10 @@ int main(void)
 	encodersConfig();
 	usart1Config();
 
+#ifdef TRATAMENTO_POS_RAMPA
+	desv_cnt = 2;
+	rampa_cnt = 3;
+#endif
 
 	// Mensagem de inicialização
 	printf("Programa TUR5 - uMaRT LITE+ V1.1\r\n");
@@ -244,7 +249,7 @@ int main(void)
 		if (rampa_cnt == 7)	// ------------------------------------------------- LOMBADA ELETRONICA
 		{
 			delay_ms(param_rampa_t1);
-			targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_med);
+			targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_max);	// _med
 			run = true;
 			rampa_cnt = 8;
 		}
@@ -301,9 +306,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		erro = erro_a;
 	}
 
-#ifdef TRATAMENTOS
+#ifdef TRATAMENTO_GERAL
 	if (desv_cnt <= 1) tratamento_desvio();
 	else if (rampa_cnt <= 6) tratamento_rampa();
+	else tratamento_loop();
+#endif
+
+#ifdef TRATAMENTO_POS_RAMPA
+	if (rampa_cnt <= 6) tratamento_rampa();
 	else tratamento_loop();
 #endif
 
@@ -324,6 +334,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 #ifdef ENABLE_DESVIO
 void tratamento_desvio(void)
 {
+
+
 	// Reseta o encoder (um pouco antes de acabar a linha) para habilitar o speedProfile()
 	if ((distance_mm >= param_desv_d0) && (desv_cnt == 0))
 	{
@@ -402,8 +414,9 @@ void tratamento_rampa(void)
 	// Lombada eletrônica
 	if (((distance_mm - dist_aux) >= param_rampa_d4) && (rampa_cnt == 6))
 	{
-		run = false;
-		setMotores(0, 0);
+		//run = false;
+		//setMotores(0, 0);
+		targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_min);
 		printf("-- LOMBADA ELETRONICA --\r\n");
 		beep(50);
 		rampa_cnt = 7;
@@ -521,21 +534,34 @@ void tratamento_loop(void)
 		curva_90_aux = getLeftEncCount();
 		run = false;
 	}
+
+	// Habilita um offset para garantir que o robô vire para esquerda na bifurcação
 	if (((distance_mm - dist_aux) >= param_loop_d3) && (loop_cnt == 5))
 	{
-		printf("-- VOLTOU AO NORMAL --\r\n");
+		printf("-- BIFURCACAO A ESQUERDA --\r\n");
 		beep(50);
 		loop_cnt = 6;
 	}
+	if(loop_cnt == 6)
+	{
+		// Desloca o robô para esquerda durante um pequeno trecho (d1 e d2)
+		erro -= param_pid_offset;
+		if((distance_mm - dist_aux) >= param_loop_d4)
+		{
+			printf("-- VOLTOU AO NORMAL --\r\n");
+			beep(100);
+			loop_cnt = 7;
+		}
+	}
 
 	// Parada final na linha de chegada
-	if (((distance_mm - dist_aux) >= param_loop_d4) && (loop_cnt == 6))
+	if (((distance_mm - dist_aux) >= param_loop_d5) && (loop_cnt == 7))
 	{
 		run = false;
 		setMotores(0, 0);
 		printf("-- FIM DO PERCURSO --\r\n");
 		beep(500);
-		loop_cnt = 7;
+		loop_cnt = 8;
 	}
 
 
