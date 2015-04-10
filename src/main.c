@@ -435,7 +435,7 @@ void tratamento_rampa(void)
 	}
 
 	// Só habilita leitura do T após esta distância logo após voltar da parada da lombada
-	if (((distance_mm - dist_aux) >= 1000) && (rampa_cnt == 7))
+	if (((distance_mm - dist_aux) >= 1500) && (rampa_cnt == 7))
 	{
 		rampa_cnt = 8;
 	}
@@ -596,7 +596,7 @@ void tratamento_loop(void)
 
 #elif CASO == 3	// ------------------------------------------------------------- CASO 3
 	// Lê o T, registra a distância e inicializa o contador para realizar o caso 3
-	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0) && (rampa_cnt = 8))
+	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0) && (rampa_cnt == 8))
 	{
 		erro = 0;
 		dist_aux = distance_mm;
