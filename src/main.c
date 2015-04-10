@@ -24,7 +24,7 @@
 #define ENABLE_RAMPA
 #define ENABLE_LOOP
 
-#define CASO 1
+#define CASO 3
 //#define DEBUG_PRINTS
 
 int32_t erro = 0, erro_a = 0;
@@ -204,7 +204,7 @@ int main(void)
 		{
 			beep(50);
 			trecho++;
-			if(trecho < N_TRECHOS)
+			if(trecho < N_TRECHOS - 1)
 			{
 				targetSpeedX = SPEED_TO_COUNTS(2 * param_desv_sX);
 				targetSpeedW = SPEED_TO_COUNTS(desvio_sW[trecho]);
@@ -334,7 +334,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 #ifdef ENABLE_DESVIO
 void tratamento_desvio(void)
 {
-
+	// Melhora a reta da largada
+	if ((distance_mm <= desvio_d[7]) && (desv_cnt == 0))
+	{
+		erro /= 3;
+	}
 
 	// Reseta o encoder (um pouco antes de acabar a linha) para habilitar o speedProfile()
 	if ((distance_mm >= param_desv_d0) && (desv_cnt == 0))
@@ -378,6 +382,12 @@ void tratamento_rampa(void)
 		rampa_cnt = 3;
 	}
 
+	// Deixa a rampa mais estável
+	if (rampa_cnt == 2 || rampa_cnt == 3)
+	{
+		erro /= 3;
+	}
+
 	// 90 graus à esquerda, registra a distância de referência
 	if ((readSpecial() == ESQUERDA_90) && (rampa_cnt == 3))
 	{
@@ -414,12 +424,20 @@ void tratamento_rampa(void)
 	// Lombada eletrônica
 	if (((distance_mm - dist_aux) >= param_rampa_d4) && (rampa_cnt == 6))
 	{
-		//run = false;
-		//setMotores(0, 0);
-		targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_min);
+		run = false;
+		setMotores(0, 0);
+		//targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_min);
 		printf("-- LOMBADA ELETRONICA --\r\n");
 		beep(50);
 		rampa_cnt = 7;
+
+		dist_aux = distance_mm;
+	}
+
+	// Só habilita leitura do T após esta distância logo após voltar da parada da lombada
+	if (((distance_mm - dist_aux) >= 1000) && (rampa_cnt == 7))
+	{
+		rampa_cnt = 8;
 	}
 }
 #endif
@@ -434,8 +452,13 @@ void tratamento_loop(void)
 	// param_loop_d2: Distância entre o T e um pouco depois da bifurcação
 	// param_loop_d3: Distância entre o T e a parada final
 
+	if ((rampa_cnt == 7) && (loop_cnt <= 2))
+	{
+		erro /= 3;
+	}
+
 	// Lê o T, registra a distância e inicializa o contador para realizar o caso 1
-	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0))
+	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0) && (rampa_cnt = 8))
 	{
 		erro = 0;
 		dist_aux = distance_mm;
@@ -464,6 +487,12 @@ void tratamento_loop(void)
 		}
 	}
 
+	// NÂO VOLTA AO NORMAL
+	if(loop_cnt == 3)
+	{
+		erro += param_pid_offset;
+	}
+
 	// Parada final na linha de chegada
 	if (((distance_mm - dist_aux) >= param_loop_d3) && (loop_cnt == 3))
 	{
@@ -482,7 +511,7 @@ void tratamento_loop(void)
 	// param_loop_d4: Distância entre 2a. curva de 90 à direita e a parada final
 
 	// 90 graus à esquerda, registra a distância e inicializa o contador para realizar o caso 2
-	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0))
+	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0) && (rampa_cnt = 8))
 	{
 		dist_aux = distance_mm;
 
@@ -567,7 +596,7 @@ void tratamento_loop(void)
 
 #elif CASO == 3	// ------------------------------------------------------------- CASO 3
 	// Lê o T, registra a distância e inicializa o contador para realizar o caso 3
-	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0))
+	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0) && (rampa_cnt = 8))
 	{
 		erro = 0;
 		dist_aux = distance_mm;
