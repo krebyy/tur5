@@ -24,7 +24,7 @@
 #define ENABLE_RAMPA
 #define ENABLE_LOOP
 
-#define CASO 3
+#define CASO 1	// AO MUDAR O CASO MUDAR TAMBÉM AS DISTÂNCIAS !!!!!!!!!!
 //#define DEBUG_PRINTS
 
 int32_t erro = 0, erro_a = 0;
@@ -308,14 +308,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 #ifdef TRATAMENTO_GERAL
 	if (desv_cnt <= 1) tratamento_desvio();
-	else if (rampa_cnt <= 6) tratamento_rampa();
+	else if (rampa_cnt <= 8) tratamento_rampa(); /// ESSE 8 É TRETA
 	else tratamento_loop();
 #endif
 
 #ifdef TRATAMENTO_POS_RAMPA
-	if (rampa_cnt <= 6) tratamento_rampa();
+	if (rampa_cnt <= 8) tratamento_rampa();
 	else tratamento_loop();
 #endif
+
+
+	ganhoX = SPEED_TO_COUNTS((2000 - abs(erro)) / 10);
 
 	// Controlador PID
 	if (run == true)
@@ -412,7 +415,7 @@ void tratamento_rampa(void)
 	if(rampa_cnt == 5)
 	{
 		// Desloca o robô para esquerda durante um pequeno trecho
-		erro -= param_pid_offset;
+		erro -= 800;//param_pid_offset;
 		if((distance_mm - dist_aux) >= (param_rampa_d3 + 1000))
 		{
 			printf("-- VOLTOU AO NORMAL --\r\n");
@@ -424,20 +427,19 @@ void tratamento_rampa(void)
 	// Lombada eletrônica
 	if (((distance_mm - dist_aux) >= param_rampa_d4) && (rampa_cnt == 6))
 	{
+		dist_aux = distance_mm;
 		run = false;
 		setMotores(0, 0);
 		//targetSpeedX = SPEED_TO_COUNTS(2 * param_speedX_min);
 		printf("-- LOMBADA ELETRONICA --\r\n");
 		beep(50);
 		rampa_cnt = 7;
-
-		dist_aux = distance_mm;
 	}
 
 	// Só habilita leitura do T após esta distância logo após voltar da parada da lombada
-	if (((distance_mm - dist_aux) >= 1500) && (rampa_cnt == 7))
+	if (((distance_mm - dist_aux) >= 1500) && (rampa_cnt == 8))
 	{
-		rampa_cnt = 8;
+		rampa_cnt = 9;
 	}
 }
 #endif
@@ -452,13 +454,13 @@ void tratamento_loop(void)
 	// param_loop_d2: Distância entre o T e um pouco depois da bifurcação
 	// param_loop_d3: Distância entre o T e a parada final
 
-	if ((rampa_cnt == 7) && (loop_cnt <= 2))
+	if ((rampa_cnt >= 7) && (loop_cnt <= 2))
 	{
 		erro /= 3;
 	}
 
 	// Lê o T, registra a distância e inicializa o contador para realizar o caso 1
-	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0) && (rampa_cnt = 8))
+	if ((readSpecial() == ESQUERDA_90) && (loop_cnt == 0) && (rampa_cnt == 9))
 	{
 		erro = 0;
 		dist_aux = distance_mm;
@@ -487,7 +489,7 @@ void tratamento_loop(void)
 		}
 	}
 
-	// NÂO VOLTA AO NORMAL
+	// NÃO VOLTA AO NORMAL
 	if(loop_cnt == 3)
 	{
 		erro += param_pid_offset;
@@ -696,6 +698,12 @@ void tratamento_loop(void)
 			beep(100);
 			loop_cnt = 10;
 		}
+	}
+
+	// NÃO VOLTA AO NORMAL
+	if(loop_cnt == 10)
+	{
+		erro += param_pid_offset;
 	}
 
 	// Parada final na linha de chegada
